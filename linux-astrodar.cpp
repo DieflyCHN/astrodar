@@ -25,6 +25,7 @@
 #include "solar_events.hpp"
 #include "solar_time.hpp"
 #include "moon_model.hpp"
+#include "moon_events.hpp"
 #include "localization.hpp"
 #include "observer.hpp"
 #include "solar_terms.hpp"
@@ -572,12 +573,18 @@ int main() {
                 text(tr("sun_declination") + ": " + std::to_string(sun.declination) + "°"),
                 text(tr("sun_distance") + ": " + std::to_string(sun.distanceAU) + " AU")};
             Elements moonData = {text(tr("moon")) | bold,
-                text(tr("moon_longitude") + ": " + std::to_string(moon.eclipticLongitude) + "°"),
-                text(tr("moon_latitude") + ": " + std::to_string(moon.eclipticLatitude) + "°"),
-                text(tr("moon_distance") + ": " + std::to_string(moon.distanceKm) + " km"),
-                text(tr("moon_declination") + ": " + std::to_string(moon.declination) + "°"),
-                text(tr("moon_elongation") + ": " + std::to_string(moon.elongation) + "°"),
-                text(tr("moon_illumination") + ": " + std::to_string(moon.illuminatedFraction * 100.0) + "%")};
+                text("地月距离 " + std::to_string(moon.distanceKm) + " km"),
+                text("地心黄道坐标") | bold,
+                text("黄经    " + std::to_string(moon.eclipticLongitude) + "°"),
+                text("黄纬    " + std::to_string(moon.eclipticLatitude) + "°"),
+                text("地心赤道坐标") | bold,
+                text("赤经    " + std::to_string(moon.rightAscension / 15.0) + " h"),
+                text("赤纬    " + std::to_string(moon.declination) + "°"),
+                text("赤道地平视差 " + std::to_string(moon.horizontalParallax) + "°"),
+                text("视半径  " + std::to_string(moon.angularRadius) + "°"),
+                text("相位") | bold,
+                text("日月角距 " + std::to_string(moon.elongation) + "°"),
+                text("照明    " + std::to_string(moon.illuminatedFraction * 100.0) + "%")};
             data.push_back(hbox({vbox({vbox(std::move(solarData)) | border,
                                         vbox(std::move(moonData)) | border}) | flex,
                                  vbox({text(tr("lunar_phase")) | bold | center, moonDisk() | center,
@@ -706,6 +713,7 @@ int main() {
             const double longitude = (queryEast ? 1.0 : -1.0) * longitudeValue.value_or(0.0);
             const SolarPosition querySun = queryTT ? calculateSolarPosition(*queryTT) : sun;
             const MoonPosition queryMoon = queryTT ? calculateMoonPosition(*queryTT, querySun.apparentEclipticLongitude) : moon;
+            const TopocentricMoonPosition queryTopocentricMoon = calculateTopocentricMoonPosition(queryMoon, unixToJD(queryUtc), latitude, longitude);
             const LocalSolarTime solarTime = calculateLocalSolarTime(queryUtc, longitude, querySun.equationOfTimeMinutes);
             const GregorianTime queryTime{solarTime.year, solarTime.month, solarTime.day, solarTime.hour, solarTime.minute, solarTime.second, solarTime.weekday};
             const Ganzhi queryDay = jdnToDayGanzhi(gregorianToJDN(queryTime));
@@ -714,6 +722,7 @@ int main() {
             const ChineseHour queryHour = dayGanzhiToHourGanzhi(queryDay, queryTime.hour, queryTime.minute);
             const ObserverLocation queryLocation{"查询", "UTC", latitude, longitude, 0.0};
             const SolarEvents queryEvents = calculateSolarEvents(queryLocation, queryTime.year, queryTime.month, queryTime.day);
+            const MoonEvents queryMoonEvents = calculateMoonEvents(queryLocation, queryTime.year, queryTime.month, queryTime.day);
             const auto qevent = [&](const std::optional<std::time_t>& event) {
                 if (!event) return std::string("--:--");
                 const auto eventTT = utcJulianDateToTT(unixToJD(*event));
@@ -752,7 +761,14 @@ int main() {
                 separator(), hbox({
                     vbox({text("太阳") | bold, text("视黄经  " + std::to_string(querySun.apparentEclipticLongitude) + "°"), text("黄纬    " + std::to_string(querySun.eclipticLatitude) + "°"), text("赤纬    " + std::to_string(querySun.declination) + "°"), text("日地距  " + std::to_string(querySun.distanceAU) + " AU")}) | border | flex,
                     vbox({text("太阳活动") | bold, text("天文曙光  " + qevent(queryEvents.astronomicalDawn)), text("航海曙光  " + qevent(queryEvents.nauticalDawn)), text("民用曙光  " + qevent(queryEvents.civilDawn)), text("日出      " + qevent(queryEvents.sunrise)), text("中天      " + qevent(queryEvents.solarNoon)), text("日落      " + qevent(queryEvents.sunset)), text("民用暮光  " + qevent(queryEvents.civilDusk)), text("航海暮光  " + qevent(queryEvents.nauticalDusk)), text("天文暮光  " + qevent(queryEvents.astronomicalDusk)), separator(), text("日照时间  " + qdaylight())}) | border | flex,
-                    vbox({text("月球") | bold, text("黄经    " + std::to_string(queryMoon.eclipticLongitude) + "°"), text("黄纬    " + std::to_string(queryMoon.eclipticLatitude) + "°"), text("赤纬    " + std::to_string(queryMoon.declination) + "°"), text("地月距  " + std::to_string(queryMoon.distanceKm) + " km"), text("角距    " + std::to_string(queryMoon.elongation) + "°"), text("照明    " + std::to_string(queryMoon.illuminatedFraction * 100.0) + "%")}) | border | flex}),
+                    vbox({text("月球") | bold,
+                        text("地月距离 " + std::to_string(queryMoon.distanceKm) + " km"),
+                        text("地心黄道") | bold, text("黄经    " + std::to_string(queryMoon.eclipticLongitude) + "°"), text("黄纬    " + std::to_string(queryMoon.eclipticLatitude) + "°"),
+                        text("地心赤道") | bold, text("赤经    " + std::to_string(queryMoon.rightAscension / 15.0) + " h"), text("赤纬    " + std::to_string(queryMoon.declination) + "°"), text("赤道地平视差 " + std::to_string(queryMoon.horizontalParallax) + "°"), text("视半径  " + std::to_string(queryMoon.angularRadius) + "°"),
+                        text("地表赤道") | bold, text("赤经    " + std::to_string(queryTopocentricMoon.rightAscension / 15.0) + " h"), text("赤纬    " + std::to_string(queryTopocentricMoon.declination) + "°"),
+                        text("地平坐标") | bold, text("方位角  " + std::to_string(queryTopocentricMoon.azimuth) + "°"), text("真仰角  " + std::to_string(queryTopocentricMoon.trueAltitude) + "°"),
+                        text("月球活动（±约5分钟）") | bold, text("月出    " + qevent(queryMoonEvents.standardRise)), text("中天    " + qevent(queryMoonEvents.upperTransit)), text("月没    " + qevent(queryMoonEvents.standardSet)),
+                        text("相位") | bold, text("日月角距 " + std::to_string(queryMoon.elongation) + "°"), text("照明    " + std::to_string(queryMoon.illuminatedFraction * 100.0) + "%")}) | border | flex}),
                 separator(), text(queryTimeEditing
                     ? "[←→] 选择年月日时分秒  [↑↓] 调整（自动校准日期）  [Enter] 完成"
                     : "[↑↓] 选择  [Tab] 切换该行模式  [Enter] 选择  [F/Esc] 关闭") | dim | center}) | border | size(WIDTH, LESS_THAN, 120) | center;

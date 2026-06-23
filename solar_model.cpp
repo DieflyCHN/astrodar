@@ -1,4 +1,5 @@
 #include "solar_model.hpp"
+#include "earth_orientation.hpp"
 
 #include <cmath>
 
@@ -31,11 +32,6 @@ double radiansToDegrees(double radians) {
     return radians * 180.0 / PI;
 }
 
-double normalizeDegrees(double degrees) {
-    double normalized = std::fmod(degrees, 360.0);
-    return normalized < 0.0 ? normalized + 360.0 : normalized;
-}
-
 double evaluateVSOP87D(int coordinate, double tau) {
     double coordinateValue = 0.0;
     for (const VSOPTerm& term : VSOP87D_EARTH_TERMS) {
@@ -45,30 +41,6 @@ double evaluateVSOP87D(int coordinate, double tau) {
         }
     }
     return coordinateValue;
-}
-
-double nutationInLongitudeDegrees(double T) {
-    const double omega = 125.04452 - T * (1934.136261 - T * (0.0020708 + T / 450000.0));
-    const double sunMeanLongitude = normalizeDegrees(280.4665 + 36000.7698 * T);
-    const double moonMeanLongitude = normalizeDegrees(218.3165 + 481267.8813 * T);
-    const double arcseconds =
-        -17.20 * std::sin(degreesToRadians(omega)) -
-        1.32 * std::sin(degreesToRadians(2.0 * sunMeanLongitude)) -
-        0.23 * std::sin(degreesToRadians(2.0 * moonMeanLongitude)) +
-        0.21 * std::sin(degreesToRadians(2.0 * omega));
-    return arcseconds / 3600.0;
-}
-
-double nutationInObliquityDegrees(double T) {
-    const double omega = 125.04452 - T * (1934.136261 - T * (0.0020708 + T / 450000.0));
-    const double sunMeanLongitude = normalizeDegrees(280.4665 + 36000.7698 * T);
-    const double moonMeanLongitude = normalizeDegrees(218.3165 + 481267.8813 * T);
-    const double arcseconds =
-        9.20 * std::cos(degreesToRadians(omega)) +
-        0.57 * std::cos(degreesToRadians(2.0 * sunMeanLongitude)) +
-        0.10 * std::cos(degreesToRadians(2.0 * moonMeanLongitude)) -
-        0.09 * std::cos(degreesToRadians(2.0 * omega));
-    return arcseconds / 3600.0;
 }
 
 }  // namespace
@@ -93,8 +65,7 @@ SolarPosition calculateSolarPosition(double jdTT) {
     const double apparentLongitude = normalizeDegrees(
         fk5Longitude + nutationInLongitudeDegrees(T) - (20.4898 / 3600.0) / distanceAU);
 
-    const double meanObliquity =
-        23.0 + (26.0 + (21.448 - T * (46.815 + T * (0.00059 - 0.001813 * T))) / 60.0) / 60.0;
+    const double meanObliquity = meanObliquityDegrees(T);
     const double obliquity = meanObliquity + nutationInObliquityDegrees(T);
     const double apparentLongitudeRadians = degreesToRadians(apparentLongitude);
     const double latitudeRadians = degreesToRadians(fk5Latitude);

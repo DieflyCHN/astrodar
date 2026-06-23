@@ -10,7 +10,7 @@ endif
 LDLIBS += -lftxui-component -lftxui-dom -lftxui-screen
 
 TARGET := astrodar
-SOURCES := linux-astrodar.cpp localization.cpp location_config.cpp time_zone_reference.cpp solar_model.cpp solar_time.cpp solar_events.cpp moon_model.cpp solar_terms.cpp time_scales.cpp
+SOURCES := linux-astrodar.cpp localization.cpp location_config.cpp time_zone_reference.cpp earth_orientation.cpp solar_model.cpp solar_time.cpp solar_events.cpp moon_model.cpp moon_events.cpp elp82b_model.cpp elp82b_embedded.cpp solar_terms.cpp time_scales.cpp
 
 .PHONY: all run clean
 
